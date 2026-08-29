@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Shopper</title>
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiU2hvcHBlciIsInNob3J0X25hbWUiOiJTaG9wcGVyIiwic3RhcnRfdXJsIjoiLiIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiNmNWY1ZjUiLCJ0aGVtZV9jb2xvciI6IiM0Q0FGNTAiLCJvcmllbnRhdGlvbiI6InBvcnRyYWl0IiwiaWNvbnMiOlt7InNyYyI6ImRhdGE6aW1hZ2Uvc3ZnK3htbCw8c3ZnIHhtbG5zPSdodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2Zycgdmlld0JveD0nMCAwIDE5MiAxOTInPjxyZWN0IHdpZHRoPScxOTInIGhlaWdodD0nMTkyJyBmaWxsPScjNENBRjUwJy8+PHRleHQgeD0nOTYnIHk9JzEyMCcgZm9udC1zaXplPScxMDAnIHRleHQtYW5jaG9yPSdtaWRkbGUnPuKZrjwvdGV4dD48L3N2Zz4+Iiwic2l6ZXMiOiIxOTJ4MTkyIiwidHlwZSI6ImltYWdlL3N2Zyt4bWwifV19">
+<meta name="theme-color" content="#4CAF50">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f5f5f5;color:#333;font-size:14px;padding:8px;max-width:720px;margin:auto}
+@media(min-width:769px){body{max-width:720px;margin:auto}}
+h1{text-align:center;font-size:18px;margin:6px 0 8px}
+.stores{display:flex;gap:4px;overflow-x:auto;padding:4px 0 8px;-webkit-overflow-scrolling:touch}
+.store-tab{display:flex;align-items:center;gap:4px;background:#fff;border:1px solid #ddd;border-radius:8px;padding:6px 10px;white-space:nowrap;font-size:13px;flex-shrink:0;cursor:pointer}
+.store-tab.active{background:#4CAF50;color:#fff;border-color:#4CAF50}
+.store-tab .del{color:#e53935;font-size:15px;cursor:pointer;margin-left:2px}
+.store-tab.active .del{color:#fff}
+.add-store-btn{background:#e8f5e9;border:1px dashed #4CAF50;color:#2e7d32;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;flex-shrink:0;white-space:nowrap}
+.add-store-inline{display:none;align-items:center;gap:4px;flex-shrink:0}
+.add-store-inline.show{display:flex}
+.add-store-inline input{padding:5px 7px;font-size:13px;border:1px solid #ccc;border-radius:6px;width:100px}
+.add-store-inline button{background:#4CAF50;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:13px;cursor:pointer}
+.form-card{background:#fff;border-radius:10px;padding:10px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.form-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap}
+.form-row label{font-size:12px;color:#666;width:70px;flex-shrink:0}
+.form-row input,.form-row select{flex:1;min-width:80px;padding:5px 7px;font-size:13px;border:1px solid #ccc;border-radius:6px}
+.form-row input[type=number]{max-width:90px}
+.btn-add{background:#4CAF50;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:14px;width:100%;cursor:pointer;margin-top:2px}
+.btn-save-edit{background:#FF9800;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:14px;width:100%;cursor:pointer;margin-top:2px;display:none}
+.unit-price-live{color:#e53935;font-weight:700;font-size:13px;margin-top:4px}
+.products{margin-top:6px}
+.product{background:#fff;border-radius:8px;padding:8px 10px;margin-bottom:5px;display:flex;align-items:center;gap:8px;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.product.done{opacity:.5}
+.product.done .p-name{text-decoration:line-through}
+.product .p-check{flex-shrink:0;width:20px;height:20px;cursor:pointer}
+.product .p-info{flex:1;min-width:0}
+.product .p-name{font-weight:600;font-size:14px;word-break:break-word}
+.product .p-meta{font-size:12px;color:#888;margin-top:2px}
+.product .p-unit-price{color:#e53935;font-weight:700;font-size:12px;margin-top:1px}
+.product .p-price{font-weight:700;color:#2e7d32;font-size:15px;white-space:nowrap}
+.product .p-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.product .edit-p{cursor:pointer;font-size:15px;opacity:.6}
+.product .del-p{color:#e53935;font-size:18px;cursor:pointer}
+.search-card{background:#fff;border-radius:10px;padding:10px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.search-row{display:flex;gap:6px}
+.search-row input{flex:1;padding:6px 8px;font-size:13px;border:1px solid #ccc;border-radius:6px}
+.results{margin-top:8px}
+.result-item{background:#fff;border-radius:8px;padding:8px 10px;margin-bottom:5px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.result-item.best{border-left:4px solid #4CAF50}
+.result-item .r-store{font-size:11px;color:#888}
+.result-item .r-price{font-weight:700;font-size:15px}
+.result-item .best-tag{background:#4CAF50;color:#fff;font-size:11px;border-radius:4px;padding:2px 6px;margin-left:4px}
+.empty{text-align:center;color:#aaa;padding:20px;font-size:14px}
+.toolbar{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.toolbar button{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;font-weight:600;box-shadow:0 2px 4px rgba(0,0,0,.15);transition:all .2s}
+.toolbar button:hover{transform:translateY(-1px);box-shadow:0 4px 8px rgba(0,0,0,.2)}
+.toolbar button:active{transform:translateY(0)}
+.toolbar .btn-save{background:linear-gradient(135deg,#11998e 0%,#38ef7d 100%)}
+.toolbar .btn-load{background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%)}
+.status-bar{background:#fff;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12px;color:#666;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.status-bar.synced{background:#e8f5e9;color:#2e7d32}
+.status-bar.unsaved{background:#fff3e0;color:#e65100}
+.filter-card{background:#fff;border-radius:10px;padding:10px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.filter-row{display:flex;gap:6px}
+.filter-row input{flex:1;padding:6px 8px;font-size:13px;border:1px solid #ccc;border-radius:6px}
+.modal-bg{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);z-index:100;align-items:center;justify-content:center}
+.modal-bg.show{display:flex}
+.modal{background:#fff;border-radius:12px;padding:16px;width:90%;max-width:340px}
+.modal h3{font-size:15px;margin-bottom:10px}
+.modal input{width:100%;padding:8px;font-size:14px;border:1px solid #ccc;border-radius:6px;margin-bottom:10px}
+.modal-btns{display:flex;gap:8px}
+.modal-btns button{flex:1;padding:9px;border:none;border-radius:8px;font-size:14px;cursor:pointer}
+.modal-btns .ok{background:#4CAF50;color:#fff}
+.modal-btns .cancel{background:#eee;color:#333}
+</style>
+</head>
+<body>
+<h1>🛒 Shopper</h1>
+<div class="status-bar" id="statusBar">⚠️ Нет загруженных данных. Нажмите "📂 Загрузить"</div>
+<div class="toolbar">
+<button class="btn-load" onclick="document.getElementById('loadFile').click()">📂 Загрузить</button>
+<button class="btn-save" onclick="saveToFile()">💾 Сохранить</button>
+<input type="file" id="loadFile" accept=".json" style="display:none" onchange="loadFromFile(event)">
+<button onclick="exportData()">📤 Экспорт</button>
+<button onclick="document.getElementById('importFile').click()">📥 Импорт</button>
+<input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+</div>
+<div class="stores" id="storeTabs"></div>
+<div class="search-card">
+<div class="search-row">
+<input type="text" id="searchInput" placeholder="Найти товар во всех магазинах...">
+<button onclick="doSearch()">🔍</button>
+</div>
+<div class="results" id="searchResults"></div>
+</div>
+<div class="filter-card">
+<div class="filter-row">
+<input type="text" id="filterInput" placeholder="🔎 Фильтр товаров в этом магазине..." oninput="renderProducts()">
+</div>
+</div>
+<div class="form-card">
+<div class="form-row"><label>Товар:</label><input type="text" id="pName" placeholder="Название"></div>
+<div class="form-row"><label>Цена ₽:</label><input type="number" id="pPrice" placeholder="0" step="0.01"><label>Кол-во:</label><input type="number" id="pQty" placeholder="1" step="0.001"><select id="pUnit" onchange="onUnitChange()"><option value="шт">шт</option><option value="кг">кг</option><option value="л">л</option><option value="г">г</option><option value="мл">мл</option><option value="уп">уп</option></select></div>
+<div class="form-row" id="pkgRow" style="display:none"><label>В упаковке:</label><input type="number" id="pPkgQty" placeholder="сколько" step="0.001"><select id="pPkgUnit"><option value="г">г</option><option value="мл">мл</option><option value="шт">шт</option></select></div>
+<div class="unit-price-live" id="unitPriceLive"></div>
+<button class="btn-add" id="btnAdd" onclick="addProduct()">+ Добавить товар</button>
+<button class="btn-save-edit" id="btnSaveEdit" onclick="saveEdit()">💾 Сохранить изменения</button>
+</div>
+<div class="products" id="productList"></div>
+<div class="modal-bg" id="renameModal"><div class="modal"><h3>Переименовать магазин</h3><input type="text" id="renameInput"><div class="modal-btns"><button class="cancel" onclick="closeRename()">Отмена</button><button class="ok" onclick="confirmRename()">OK</button></div></div></div>
+<script>
+var data={stores:[],activeStore:null,renameId:null,editId:null,hasUnsavedChanges:false};
+function initData(){
+return{stores:[{id:id(),name:'Пятёрочка',products:{}},{id:id(),name:'Магнит',products:{}},{id:id(),name:'Лента',products:{}}],activeStore:null,renameId:null,editId:null};
+}
+function id(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+
+function updateStatus(synced){
+var bar=document.getElementById('statusBar');
+if(synced){
+bar.className='status-bar synced';
+bar.textContent='✅ Данные синхронизированы с файлом';
+data.hasUnsavedChanges=false;
+}else{
+bar.className='status-bar unsaved';
+bar.textContent='⚠️ Есть несохранённые изменения. Нажмите "💾 Сохранить"';
+data.hasUnsavedChanges=true;
+}
+}
+
+function loadFromFile(e){
+var file=e.target.files[0];
+if(!file)return;
+var r=new FileReader();
+r.onload=function(ev){
+try{
+var d=JSON.parse(ev.target.result);
+if(d.stores&&Array.isArray(d.stores)){
+data.stores=d.stores;
+data.activeStore=d.stores[0]?d.stores[0].id:null;
+data.renameId=null;
+data.editId=null;
+renderStores();renderProducts();
+updateStatus(true);
+alert('✅ Данные загружены из файла!');
+}else{alert('❌ Неверный формат файла');}
+}catch(err){alert('❌ Ошибка чтения файла: '+err.message);}
+};
+r.readAsText(file);
+e.target.value='';
+}
+
+function saveToFile(){
+var blob=new Blob([JSON.stringify({stores:data.stores},null,2)],{type:'application/json'});
+var a=document.createElement('a');
+a.href=URL.createObjectURL(blob);
+a.download='shopper_data.json';
+document.body.appendChild(a);
+a.click();
+document.body.removeChild(a);
+URL.revokeObjectURL(a.href);
+updateStatus(true);
+}
+
+function markUnsaved(){
+if(!data.hasUnsavedChanges)updateStatus(false);
+}
+
+function renderStores(){
+var c=document.getElementById('storeTabs');
+var html='';
+data.stores.forEach(function(s){
+var cls=s.id===data.activeStore?'store-tab active':'store-tab';
+html+='<div class="'+cls+'" onclick="selectStore(\''+s.id+'\')">';
+html+='<span class="edit-p" onclick="event.stopPropagation();openRename(\''+s.id+'\')">✏️</span>';
+html+='<span>'+esc(s.name)+'</span>';
+if(data.stores.length>1)html+='<span class="del" onclick="event.stopPropagation();deleteStore(\''+s.id+'\')">✕</span>';
+html+='</div>';
+});
+html+='<div id="addStoreInline" class="add-store-inline"><input type="text" id="newStoreName" placeholder="Название" onkeydown="if(event.key===\'Enter\')confirmAddStore()"><button onclick="confirmAddStore()">+</button></div>';
+html+='<button class="add-store-btn" id="addStoreBtn" onclick="toggleAddStore()">+ Магазин</button>';
+c.innerHTML=html;
+}
+function toggleAddStore(){
+var el=document.getElementById('addStoreInline');
+var btn=document.getElementById('addStoreBtn');
+el.classList.toggle('show');
+if(el.classList.contains('show')){document.getElementById('newStoreName').focus();btn.style.display='none';}else btn.style.display='';
+}
+function confirmAddStore(){
+var name=document.getElementById('newStoreName').value.trim();
+if(!name)return;
+var s={id:id(),name:name,products:{}};
+data.stores.push(s);data.activeStore=s.id;
+renderStores();renderProducts();markUnsaved();
+}
+function selectStore(sid){data.activeStore=sid;renderStores();renderProducts();document.getElementById('filterInput').value='';markUnsaved();}
+function deleteStore(sid){
+if(data.stores.length<=1)return;
+var s=data.stores.find(function(x){return x.id===sid;});
+if(!confirm('Удалить магазин «'+s.name+'»? Все товары будут удалены.'))return;
+data.stores=data.stores.filter(function(x){return x.id!==sid;});
+if(data.activeStore===sid)data.activeStore=data.stores[0].id;
+renderStores();renderProducts();markUnsaved();
+}
+function openRename(sid){data.renameId=sid;document.getElementById('renameInput').value=data.stores.find(function(s){return s.id===sid;}).name;document.getElementById('renameModal').classList.add('show');document.getElementById('renameInput').focus();}
+function closeRename(){document.getElementById('renameModal').classList.remove('show');data.renameId=null;}
+function confirmRename(){
+var name=document.getElementById('renameInput').value.trim();
+if(!name)return;
+var s=data.stores.find(function(x){return x.id===data.renameId;});
+if(s){s.name=name;renderStores();markUnsaved();}
+closeRename();
+}
+
+function getStore(){return data.stores.find(function(s){return s.id===data.activeStore});}
+function onUnitChange(){
+var u=document.getElementById('pUnit').value;
+document.getElementById('pkgRow').style.display=(u==='уп')?'flex':'none';
+calcLive();
+}
+function calcLive(){
+var price=parseFloat(document.getElementById('pPrice').value)||0;
+var qty=parseFloat(document.getElementById('pQty').value)||1;
+var unit=document.getElementById('pUnit').value;
+var el=document.getElementById('unitPriceLive');
+el.textContent='';
+if(price<=0)return;
+if(unit==='кг'||unit==='л'){el.textContent='Цена за 1 '+unit+': '+(price/qty).toFixed(2)+' ₽';return;}
+if(unit==='г'){el.textContent='Цена за 1 кг: '+(price/qty*1000).toFixed(2)+' ₽';return;}
+if(unit==='мл'){el.textContent='Цена за 1 л: '+(price/qty*1000).toFixed(2)+' ₽';return;}
+if(unit==='уп'){
+var pkgQty=parseFloat(document.getElementById('pPkgQty').value)||0;
+var pkgUnit=document.getElementById('pPkgUnit').value;
+if(pkgQty<=0)return;
+if(pkgUnit==='г'){el.textContent='Цена за 1 кг: '+(price/pkgQty*1000).toFixed(2)+' ₽';return;}
+if(pkgUnit==='мл'){el.textContent='Цена за 1 л: '+(price/pkgQty*1000).toFixed(2)+' ₽';return;}
+if(pkgUnit==='шт'){el.textContent='Цена за 1 шт: '+(price/pkgQty).toFixed(2)+' ₽';return;}
+}
+if(unit==='шт'){el.textContent='Цена за 1 шт: '+(price/qty).toFixed(2)+' ₽';return;}
+}
+
+function addProduct(){
+var name=document.getElementById('pName').value.trim();
+var price=parseFloat(document.getElementById('pPrice').value);
+var qty=parseFloat(document.getElementById('pQty').value)||1;
+var unit=document.getElementById('pUnit').value;
+var pkgQty=null,pkgUnit=null;
+if(unit==='уп'){pkgQty=parseFloat(document.getElementById('pPkgQty').value)||null;pkgUnit=document.getElementById('pPkgUnit').value;}
+if(!name||!price||price<=0){alert('Введите название и цену');return;}
+var st=getStore();
+st.products[id()]={name:name,price:price,qty:qty,unit:unit,pkgQty:pkgQty,pkgUnit:pkgUnit,done:false};
+document.getElementById('pName').value='';
+document.getElementById('pPrice').value='';
+document.getElementById('pQty').value='1';
+document.getElementById('pPkgQty').value='';
+document.getElementById('pUnit').value='шт';
+document.getElementById('pkgRow').style.display='none';
+document.getElementById('unitPriceLive').textContent='';
+renderProducts();markUnsaved();
+}
+
+function editProduct(pid){
+var st=getStore();
+var p=st.products[pid];
+data.editId=pid;
+document.getElementById('pName').value=p.name;
+document.getElementById('pPrice').value=p.price;
+document.getElementById('pQty').value=p.qty;
+document.getElementById('pUnit').value=p.unit;
+onUnitChange();
+if(p.unit==='уп'){
+document.getElementById('pPkgQty').value=p.pkgQty||'';
+document.getElementById('pPkgUnit').value=p.pkgUnit||'г';
+calcLive();
+}
+document.getElementById('btnAdd').style.display='none';
+document.getElementById('btnSaveEdit').style.display='block';
+document.getElementById('pName').focus();
+window.scrollTo(0,0);
+}
+function saveEdit(){
+if(!data.editId)return;
+var st=getStore();
+var p=st.products[data.editId];
+p.name=document.getElementById('pName').value.trim();
+p.price=parseFloat(document.getElementById('pPrice').value);
+p.qty=parseFloat(document.getElementById('pQty').value)||1;
+p.unit=document.getElementById('pUnit').value;
+if(p.unit==='уп'){p.pkgQty=parseFloat(document.getElementById('pPkgQty').value)||null;p.pkgUnit=document.getElementById('pPkgUnit').value;}
+else{p.pkgQty=null;p.pkgUnit=null;}
+cancelEdit();renderProducts();markUnsaved();
+}
+function cancelEdit(){
+data.editId=null;
+document.getElementById('pName').value='';
+document.getElementById('pPrice').value='';
+document.getElementById('pQty').value='1';
+document.getElementById('pPkgQty').value='';
+document.getElementById('pUnit').value='шт';
+document.getElementById('pkgRow').style.display='none';
+document.getElementById('unitPriceLive').textContent='';
+document.getElementById('btnAdd').style.display='block';
+document.getElementById('btnSaveEdit').style.display='none';
+}
+
+function toggleDone(pid){
+var st=getStore();
+st.products[pid].done=!st.products[pid].done;
+renderProducts();markUnsaved();
+}
+
+function deleteProduct(pid){
+var st=getStore();
+delete st.products[pid];
+renderProducts();markUnsaved();
+}
+
+function calcUnitPrice(p){
+if(p.unit==='кг'||p.unit==='л')return p.price/p.qty;
+if(p.unit==='г')return p.price/p.qty*1000;
+if(p.unit==='мл')return p.price/p.qty*1000;
+if(p.unit==='шт')return p.price/p.qty;
+if(p.unit==='уп'&&p.pkgQty){
+if(p.pkgUnit==='г'||p.pkgUnit==='мл')return p.price/p.pkgQty*1000;
+if(p.pkgUnit==='шт')return p.price/p.pkgQty;
+}
+return null;
+}
+function unitLabel(p){
+if(p.unit==='кг')return'кг';
+if(p.unit==='л')return'л';
+if(p.unit==='г')return'кг';
+if(p.unit==='мл')return'л';
+if(p.unit==='шт')return'шт';
+if(p.unit==='уп'&&p.pkgUnit){
+if(p.pkgUnit==='г')return'кг';
+if(p.pkgUnit==='мл')return'л';
+if(p.pkgUnit==='шт')return'шт';
+}
+return'';
+}
+
+function renderProducts(){
+var st=getStore();
+var c=document.getElementById('productList');
+var filterText=document.getElementById('filterInput').value.trim().toLowerCase();
+var keys=Object.keys(st.products);
+if(!keys.length){c.innerHTML='<div class="empty">Нет товаров.<br>Добавьте первый выше ☝️</div>';return;}
+keys.sort(function(a,b){return st.products[a].name.localeCompare(st.products[b].name,'ru',{sensitivity:'base'});});
+var html='';
+var hasVisible=false;
+keys.forEach(function(pid){
+var p=st.products[pid];
+if(filterText&&p.name.toLowerCase().indexOf(filterText)!==0)return;
+hasVisible=true;
+var cls=p.done?'product done':'product';
+html+='<div class="'+cls+'">';
+html+='<input type="checkbox" class="p-check" '+(p.done?'checked':'')+' onchange="toggleDone(\''+pid+'\')">';
+html+='<div class="p-info">';
+html+='<div class="p-name">'+esc(p.name)+'</div>';
+html+='<div class="p-meta">'+p.qty+' '+esc(p.unit)+' · '+p.price+' ₽';
+if(p.unit==='уп'&&p.pkgQty)html+=' (в уп. '+p.pkgQty+' '+esc(p.pkgUnit)+')';
+html+='</div>';
+var up=calcUnitPrice(p);
+if(up!==null)html+='<div class="p-unit-price">'+up.toFixed(2)+' ₽/'+unitLabel(p)+'</div>';
+html+='</div>';
+html+='<div class="p-actions">';
+html+='<span class="edit-p" onclick="editProduct(\''+pid+'\')">✏️</span>';
+html+='<span class="del-p" onclick="deleteProduct(\''+pid+'\')">✕</span>';
+html+='</div>';
+html+='</div>';
+});
+if(!hasVisible){c.innerHTML='<div class="empty">Товары не найдены</div>';return;}
+c.innerHTML=html;
+}
+
+function doSearch(){
+var q=document.getElementById('searchInput').value.trim().toLowerCase();
+var c=document.getElementById('searchResults');
+if(!q){c.innerHTML='';return;}
+var results=[];
+data.stores.forEach(function(s){
+Object.keys(s.products).forEach(function(pid){
+var p=s.products[pid];
+if(p.name.toLowerCase().indexOf(q)>=0){
+results.push({store:s.name,name:p.name,p:p,up:calcUnitPrice(p)});
+}});
+});
+if(!results.length){c.innerHTML='<div class="empty">Ничего не найдено</div>';return;}
+results.sort(function(a,b){
+if(a.up!==null&&b.up!==null)return a.up-b.up;
+return a.p.price-b.p.price;
+});
+var bestUp=results[0].up!==null?results[0].up:null;
+var html='';
+results.forEach(function(r,i){
+var isBest=i===0&&results.length>1;
+var priceStr=r.up!==null?r.up.toFixed(2)+' ₽/'+unitLabel(r.p):r.p.price+' ₽';
+html+='<div class="result-item'+(isBest?' best':'')+'">';
+html+='<div><div style="font-weight:'+(isBest?'700':'400')+'">'+esc(r.name)+'</div>';
+html+='<div class="r-store">'+esc(r.store)+' · '+r.p.qty+' '+esc(r.p.unit);
+if(r.p.unit==='уп'&&r.p.pkgQty)html+=' (уп. '+r.p.pkgQty+' '+esc(r.p.pkgUnit)+')';
+html+='</div></div>';
+html+='<div style="text-align:right"><span class="r-price">'+priceStr+'</span>';
+if(isBest)html+='<span class="best-tag">⭐ дешевле</span>';
+html+='</div></div>';
+});
+c.innerHTML=html;
+}
+
+function exportData(){
+var blob=new Blob([JSON.stringify({stores:data.stores},null,2)],{type:'application/json'});
+var a=document.createElement('a');
+a.href=URL.createObjectURL(blob);
+a.download='shopper_export.json';
+document.body.appendChild(a);
+a.click();
+document.body.removeChild(a);
+URL.revokeObjectURL(a.href);
+}
+function importData(e){
+var file=e.target.files[0];
+if(!file)return;
+var r=new FileReader();
+r.onload=function(ev){
+try{
+var d=JSON.parse(ev.target.result);
+if(d.stores&&Array.isArray(d.stores)){
+if(!confirm('Импорт заменит все текущие данные. Продолжить?'))return;
+data.stores=d.stores;
+data.activeStore=d.stores[0]?d.stores[0].id:null;
+renderStores();renderProducts();markUnsaved();
+alert('✅ Импорт выполнен успешно!');
+}else{alert('❌ Неверный формат файла');}
+}catch(err){alert('❌ Ошибка чтения файла: '+err.message);}
+};
+r.readAsText(file);
+e.target.value='';
+}
+
+window.addEventListener('beforeunload',function(e){
+if(data.hasUnsavedChanges){
+e.preventDefault();
+e.returnValue='';
+}
+});
+
+renderStores();renderProducts();
+document.getElementById('searchInput').addEventListener('input',doSearch);
+document.getElementById('renameInput').addEventListener('keydown',function(e){if(e.key==='Enter')confirmRename();if(e.key==='Escape')closeRename();});
+['pPrice','pQty','pPkgQty'].forEach(function(fid){var el=document.getElementById(fid);if(el)el.addEventListener('input',calcLive);});
+onUnitChange();
+</script>
+</body>
+</html>
