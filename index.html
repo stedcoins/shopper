@@ -36,6 +36,10 @@ h1{text-align:center;font-size:20px;margin:6px 0 8px}
 .results{margin-top:8px}
 .result-item{background:#fff;border-radius:8px;padding:8px 10px;margin-bottom:5px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 2px rgba(0,0,0,.06)}
 .result-item.best{border-left:4px solid #4CAF50}
+.result-item.jumpable{cursor:pointer;transition:background .15s}
+.result-item.jumpable:active{background:#e8f5e9}
+.result-item.done{background:#f1f1f1}
+.result-item.done .r-price-wrap{color:#999;text-decoration:line-through}
 .r-store{font-size:12px;color:#888}
 .r-price{font-weight:700;font-size:16px}
 .best-tag{background:#4CAF50;color:#fff;font-size:11px;border-radius:4px;padding:2px 6px;margin-left:4px}
@@ -586,7 +590,7 @@ function doSearch(){
     Object.keys(s.products).forEach(function(pid){
       var p=s.products[pid];
       if(p.name.toLowerCase().indexOf(q)>=0){
-        results.push({store:s.name,p:p});
+        results.push({sid:s.id,pid:pid,store:s.name,p:p});
       }
     });
   });
@@ -600,15 +604,40 @@ function doSearch(){
   results.forEach(function(r,i){
     var upl=unitPriceLabel(r.p);
     var isBest=i===0;
-    html+='<div class="result-item'+(isBest?' best':'')+'">';
+    html+='<div class="result-item'+(isBest?' best':'')+(r.p.bought?' done':'')+' jumpable" onclick="searchJumpTo(\''+r.sid+'\',\''+r.pid+'\')">';
     html+='<div><div style="font-weight:'+(isBest?'700':'400')+'">'+esc(r.p.name)+'</div>';
     if(upl)html+='<div class="r-store">'+esc(r.store)+' · '+r.p.qty+' '+r.p.unit+' · <span style="color:#e53935">'+esc(upl)+'</span></div>';
-    else html+='<div class="r-store">'+esc(r.store)+' · '+r.p.qty+' '+r.p.unit+'</div>'+'</div>';
-    html+='<div style="text-align:right"><span class="r-price">'+activePrice(r.p).toFixed(2)+' ₽</span>';
+    else html+='<div class="r-store">'+esc(r.store)+' · '+r.p.qty+' '+r.p.unit+'</div>';
+    html+='</div>';
+    html+='<div style="text-align:right"><span class="r-price-wrap"><span class="r-price">'+activePrice(r.p).toFixed(2)+' ₽</span>';
     if(isBest)html+='<span class="best-tag">⭐ дешевле</span>';
-    html+='</div></div>';
+    html+='</span></div></div>';
   });
   c.innerHTML=html;
+}
+function searchJumpTo(sid,pid){
+  // switch store, mark as bought, render, scroll to it
+  var st=data.stores.find(function(s){return s.id===sid;});
+  if(!st){return;}
+  data.activeStore=sid;
+  var p=st.products[pid];
+  if(p&&!p.bought){p.bought=true;}
+  save();
+  renderStores();
+  renderProducts();
+  document.getElementById('searchInput').value='';
+  document.getElementById('searchResults').innerHTML='';
+  var prodEls=document.querySelectorAll('.product');
+  for(var i=0;i<prodEls.length;i++){
+    var cb=prodEls[i].querySelector('.cb');
+    if(cb&&cb.getAttribute('onchange').indexOf(pid)>=0){
+      prodEls[i].scrollIntoView({behavior:'smooth',block:'center'});
+      prodEls[i].style.transition='background .5s';
+      prodEls[i].style.background='#fff9c4';
+      setTimeout(function(){prodEls[i].style.background='';},1200);
+      break;
+    }
+  }
 }
 
 // --- Export / Import ---
