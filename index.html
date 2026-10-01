@@ -165,6 +165,9 @@ h1{text-align:center;font-size:20px;margin:6px 0 8px}
 <!-- Rename modal -->
 <div class="modal-bg" id="renameModal"><div class="modal"><h3>Переименовать магазин</h3><input type="text" id="renameInput"><div class="modal-btns"><button class="cancel" onclick="closeRename()">Отмена</button><button class="ok" onclick="confirmRename()">OK</button></div></div></div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script>
 const DB_KEY='shopper_data';
 let data={stores:[],activeStore:null,renameId:null,editId:null,copyPid:null};
@@ -172,6 +175,73 @@ let data={stores:[],activeStore:null,renameId:null,editId:null,copyPid:null};
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function fmtDate(iso){if(!iso)return'';try{var d=new Date(iso);var p=function(n){return(n<10?'0':'')+n;};return p(d.getDate())+'.'+p(d.getMonth()+1)+'.'+d.getFullYear()+' '+p(d.getHours())+':'+p(d.getMinutes());}catch(e){return iso;}}
+
+// ===== Firebase Realtime Database sync =====
+var syncRef=null, syncCode='', isRemote=false, syncReady=false, syncDirty=false, syncTimer=null;
+function initSync(){
+  try{
+    var config={
+      apiKey:"AIzaSyAu7A5a6nm8-i03_hc3stixvLcYxnnUNz0",
+      authDomain:"shopper-sync.firebaseapp.com",
+      projectId:"shopper-sync",
+      storageBucket:"shopper-sync.firebasestorage.app",
+      messagingSenderId:"401399053754",
+      appId:"1:401399053754:web:73ea68229f99156e31f183",
+      databaseURL:"https://shopper-sync-default-rtdb.firebaseio.com/"
+    };
+    var app=firebase.initializeApp(config);
+    globalDB=firebase.database(app);
+    syncCode=loadSetting('shopper_sync_code','');
+    handleUser();
+  }catch(e){console.error('firebase init failed',e);}
+}
+function handleUser(){
+  // Use a shared "room code" so several devices sync into the same node.
+  if(!syncCode){
+    // no code yet -> prompt for one, or auto-generate and ask user to copy
+    var auto='shop-'+Math.random().toString(36).slice(2,8);
+    var entered=prompt('Введите общий код синхронизации (одинаковый на всех устройствах).\nЕсли вводите впервые — придумайте любой код и введите его здесь и на телефоне.\nНапример: '+auto);
+    if(entered&&entered.trim()){syncCode=entered.trim();saveSetting('shopper_sync_code',syncCode);}
+    else{syncCode=auto;saveSetting('shopper_sync_code',syncCode);alert('Ваш код синхронизации: '+syncCode+'\nВведите его на других устройствах, чтобы данные совпадали.');}
+  }
+  syncRef=globalDB.ref('lists/'+encodeURIComponent(syncCode)+'/data');
+  syncRef.on('value',function(snap){
+    var v=snap.val();
+    isRemote=true;
+    try{
+      if(v&&v.stores){
+        var prevStore=data.activeStore;
+        if(hasAnyData(v))data=v;
+        if(!data.activeStore||!data.stores.find(function(s){return s.id===data.activeStore;}))data.activeStore=(prevStore&&data.stores.find(function(s){return s.id===prevStore;}))?prevStore:data.stores[0].id;
+        data.renameId=null;data.editId=null;data.copyPid=null;
+        normalizeProducts(data.stores);
+        renderStores();renderProducts();
+        saveLocal();
+      } else {
+        // nothing in cloud yet -> upload current local
+        pushAll();
+      }
+    }catch(e){console.error(e);}
+    isRemote=false;
+    syncReady=true;
+  });
+}
+function saveLocal(){try{localStorage.setItem(DB_KEY,JSON.stringify(data));}catch(e){}}
+function hasAnyData(st){return !!(st&&st.stores&&st.stores.some(function(s){return s.products&&Object.keys(s.products).length;}));}
+function pushAll(){
+  if(!syncRef)return;
+  var obj=JSON.parse(JSON.stringify(data));
+  delete obj.renameId;delete obj.editId;delete obj.copyPid;
+  syncRef.set(obj).catch(function(e){console.error('push failed',e);});
+}
+function scheduleSync(){
+  syncDirty=true;
+  if(syncTimer)clearTimeout(syncTimer);
+  syncTimer=setTimeout(function(){syncDirty=false;pushAll();},400);
+}
+function loadSetting(k,dflt){try{var v=localStorage.getItem(k);return v===null||v===undefined?dflt:v;}catch(e){return dflt;}}
+function saveSetting(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+function updateSyncBadge(){/* optional */}
 
 function initData(){
   // Embedded preset: loads the user's real data on first run (when localStorage is empty).
@@ -302,6 +372,10 @@ function load(){
 function save(){
   try{localStorage.setItem(DB_KEY,JSON.stringify(data));}
   catch(e){/* storage may be unavailable (private mode / file:// ); app continues with in-memory data */}
+  // push to firebase (unless we're applying a remote update)
+  if(!isRemote&&syncRef){
+    scheduleSync();
+  }
 }
 
 // Active price (base or discount)
@@ -669,6 +743,8 @@ function importData(file){
 load();
 renderStores();
 renderProducts();
+// Firebase sync (async; initializes and attaches remote listener)
+try{initSync();}catch(e){console.error(e);}
 document.getElementById('searchInput').addEventListener('input',doSearch);
 document.getElementById('renameInput').addEventListener('keydown',function(e){if(e.key==='Enter')confirmRename();if(e.key==='Escape')closeRename();});
 ['pPrice','pQty','pPkgQty','pDiscount'].forEach(function(fid){
