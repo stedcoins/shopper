@@ -113,6 +113,23 @@ h1{text-align:center;font-size:20px;margin:6px 0 8px}
 .copy-opt{padding:9px;border-radius:8px;cursor:pointer;margin-bottom:5px;border:1px solid #eee}
 .copy-opt:hover{background:#f1f8e9}
 .copy-opt.active{background:#e8f5e9;border-color:#4CAF50}
+
+/* Cart (selected items) */
+.cart-box{background:#e8f5e9;border-radius:10px;padding:10px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.cart-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.cart-title{font-weight:700;color:#2e7d32;font-size:15px}
+.cart-clear{background:#fff;border:1px solid #ccc;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;color:#e53935;font-weight:600}
+.cart-item{display:flex;justify-content:space-between;align-items:center;padding:5px 2px;border-bottom:1px solid rgba(0,0,0,.06);font-size:14px;gap:8px}
+.cart-item .ci-name{font-weight:700}
+.cart-item .ci-meta{color:#666;font-size:12px}
+.cart-item .ci-price{font-weight:700;color:#2e7d32;white-space:nowrap}
+.cart-total{margin-top:6px;font-weight:700;color:#2e7d32;text-align:right;font-size:15px}
+
+/* Units management */
+.unit-add-btn{margin-left:6px;background:#e3f2fd;border:1px solid #90caf9;color:#1976D2;border-radius:6px;padding:4px 9px;font-size:14px;cursor:pointer;flex-shrink:0}
+.unit-list{max-height:180px;overflow-y:auto;margin-bottom:10px}
+.unit-item{display:flex;justify-content:space-between;align-items:center;padding:6px 4px;border-bottom:1px solid #eee;font-size:14px}
+.unit-item .del-u{color:#e53935;cursor:pointer;font-size:16px;padding:0 4px}
 </style>
 </head>
 <body>
@@ -141,7 +158,8 @@ h1{text-align:center;font-size:20px;margin:6px 0 8px}
 <div class="form-row"><label>Ед.изм:</label>
 <select id="pUnit" onchange="onUnitChange()">
 <option value="шт">шт</option><option value="кг">кг</option><option value="л">л</option><option value="г">г</option><option value="мл">мл</option><option value="уп">упаковка</option>
-</select></div>
+</select>
+<button class="unit-add-btn" type="button" onclick="openUnits()">+</button></div>
 <div class="form-row" id="pkgRow" style="display:none"><label>В уп.:</label><input type="number" id="pPkgQty" placeholder="сколько" step="0.001"><select id="pPkgUnit"><option value="г">г</option><option value="мл">мл</option><option value="шт">шт</option></select></div>
 <div class="unit-price-live" id="unitPriceLive"></div>
 <button class="btn-add" id="btnAdd" onclick="addProduct()">+ Добавить товар</button>
@@ -154,6 +172,12 @@ h1{text-align:center;font-size:20px;margin:6px 0 8px}
 </div>
 <div class="store-total" id="storeTotal"></div>
 
+<div class="cart-box" id="cartBox" style="display:none">
+<div class="cart-head"><span class="cart-title">🧺 Корзина (выбранное)</span><button class="cart-clear" onclick="clearCart()">Снять все</button></div>
+<div id="cartList"></div>
+<div class="cart-total" id="cartTotal"></div>
+</div>
+
 <div class="products" id="productList"></div>
 
 <!-- History modal -->
@@ -164,6 +188,13 @@ h1{text-align:center;font-size:20px;margin:6px 0 8px}
 
 <!-- Rename modal -->
 <div class="modal-bg" id="renameModal"><div class="modal"><h3>Переименовать магазин</h3><input type="text" id="renameInput"><div class="modal-btns"><button class="cancel" onclick="closeRename()">Отмена</button><button class="ok" onclick="confirmRename()">OK</button></div></div></div>
+
+<!-- Units modal -->
+<div class="modal-bg" id="unitsModal"><div class="modal"><h3>Единицы измерения</h3>
+<div class="unit-list" id="unitList"></div>
+<div class="form-row" style="margin:0 0 10px"><input type="text" id="newUnitName" placeholder="Название, напр. банка" style="flex:1"><button class="unit-add-btn" style="margin-left:0" onclick="addUnit()">Добавить</button></div>
+<div class="modal-btns"><button class="cancel" style="flex:1" onclick="closeUnits()">Закрыть</button></div>
+</div></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -242,6 +273,71 @@ function scheduleSync(){
 function loadSetting(k,dflt){try{var v=localStorage.getItem(k);return v===null||v===undefined?dflt:v;}catch(e){return dflt;}}
 function saveSetting(k,v){try{localStorage.setItem(k,v);}catch(e){}}
 function updateSyncBadge(){/* optional */}
+
+// ===== Custom units =====
+var UNITS_KEY='shopper_units';
+function getCustomUnits(){
+  try{var v=JSON.parse(localStorage.getItem(UNITS_KEY));return Array.isArray(v)?v:[];}catch(e){return [];}
+}
+function saveCustomUnits(u){try{localStorage.setItem(UNITS_KEY,JSON.stringify(u));}catch(e){}}
+function unitLabel(u){var m={'шт':'шт','кг':'кг','л':'л','г':'г','мл':'мл','уп':'упаковка'};return m[u]||u;}
+function renderUnitSelect(selId){
+  var sel=document.getElementById(selId);
+  if(!sel)return;
+  var builtins=['шт','кг','л','г','мл','уп'];
+  var customs=getCustomUnits();
+  var html='';
+  builtins.forEach(function(u){html+='<option value="'+u+'">'+unitLabel(u)+'</option>';});
+  customs.forEach(function(u){html+='<option value="'+u+'">'+esc(u)+'</option>';});
+  sel.innerHTML=html;
+}
+function renderUnitsModal(){
+  var list=document.getElementById('unitList');
+  var customs=getCustomUnits();
+  if(!customs.length){list.innerHTML='<div class="hist-empty">Своих единиц пока нет.<br>Добавьте ниже, например «банка» или «бутылка».</div>';return;}
+  var html='';
+  customs.forEach(function(u,i){
+    html+='<div class="unit-item"><span>'+esc(u)+'</span><span class="del-u" onclick="removeUnit('+i+')">✕</span></div>';
+  });
+  list.innerHTML=html;
+}
+function openUnits(){
+  renderUnitsModal();
+  document.getElementById('newUnitName').value='';
+  document.getElementById('unitsModal').classList.add('show');
+  document.getElementById('newUnitName').focus();
+}
+function closeUnits(){document.getElementById('unitsModal').classList.remove('show');}
+function addUnit(){
+  var name=document.getElementById('newUnitName').value.trim();
+  if(!name){return;}
+  var customs=getCustomUnits();
+  var all=['шт','кг','л','г','мл','уп'].concat(customs);
+  if(all.indexOf(name)>=0){alert('Такая единица уже есть');return;}
+  customs.push(name);
+  saveCustomUnits(customs);
+  renderUnitsModal();
+  document.getElementById('newUnitName').value='';
+  var cur=document.getElementById('pUnit').value;
+  renderUnitSelect('pUnit');
+  document.getElementById('pUnit').value=cur;
+  onUnitChange();
+}
+function removeUnit(idx){
+  var customs=getCustomUnits();
+  var removed=customs[idx];
+  if(!removed)return;
+  var inUse=false;
+  data.stores.forEach(function(s){Object.keys(s.products).forEach(function(pid){var p=s.products[pid];if(p.unit===removed||p.pkgUnit===removed)inUse=true;});});
+  if(inUse){alert('Эта единица используется в товарах — её нельзя удалить');return;}
+  customs.splice(idx,1);
+  saveCustomUnits(customs);
+  renderUnitsModal();
+  var cur=document.getElementById('pUnit').value;
+  renderUnitSelect('pUnit');
+  document.getElementById('pUnit').value=cur;
+  onUnitChange();
+}
 
 function initData(){
   // Embedded preset: loads the user's real data on first run (when localStorage is empty).
@@ -604,6 +700,37 @@ function computeDupNames(st){
   Object.keys(names).forEach(function(n){if(names[n]>1)dup[n]=true;});
   return dup;
 }
+// ===== Cart (selected/bought items summary) =====
+function renderCart(){
+  var st=getStore();
+  var box=document.getElementById('cartBox');
+  var list=document.getElementById('cartList');
+  var totalEl=document.getElementById('cartTotal');
+  var sold=Object.keys(st.products).map(function(pid){return{pid:pid,p:st.products[pid]};}).filter(function(e){return e.p.bought;});
+  if(!sold.length){box.style.display='none';return;}
+  box.style.display='block';
+  var html='';
+  var total=0;
+  sold.forEach(function(e){
+    var p=e.p;
+    var price=activePrice(p);
+    var sum=price*(p.qty||1);
+    total+=sum;
+    html+='<div class="cart-item">';
+    html+='<div><span class="ci-name">'+esc(p.name)+'</span> <span class="ci-meta">'+p.qty+' '+unitLabel(p.unit)+(p.unit==='уп'&&p.pkgQty?' ('+p.pkgQty+' '+p.pkgUnit+')':'')+'</span></div>';
+    html+='<span class="ci-price">'+sum.toFixed(2)+' ₽</span>';
+    html+='</div>';
+  });
+  list.innerHTML=html;
+  totalEl.textContent='Итого в корзине: '+total.toFixed(2)+' ₽';
+}
+function clearCart(){
+  var st=getStore();
+  var any=false;
+  Object.keys(st.products).forEach(function(pid){if(st.products[pid].bought){st.products[pid].bought=false;any=true;}});
+  if(!any)return;
+  save();renderCart();renderProducts();
+}
 function renderProducts(){
   var st=getStore();
   var c=document.getElementById('productList');
@@ -620,6 +747,8 @@ function renderProducts(){
   var boughtSum=entries.filter(function(e){return e.p.bought;}).reduce(function(s,e){return +s+activePrice(e.p)*(e.p.qty||1);},0);
   var cntEntries=entries.length;
   document.getElementById('storeTotal').textContent='Всего ('+entries.length+'): '+(totalAll.toFixed(2))+' ₽'+(boughtSum>0?' · куплено: '+boughtSum.toFixed(2)+' ₽':'');
+
+  renderCart();
 
   if(!entries.length){c.innerHTML='<div class="empty">Нет товаров.<br>Добавьте первый выше ☝️</div>';return;}
   var html='';
@@ -752,6 +881,9 @@ document.getElementById('renameInput').addEventListener('keydown',function(e){if
   if(el)el.addEventListener('input',calcLive);
 });
 onUnitChange();
+// populate custom units into selects
+try{renderUnitSelect('pUnit');renderUnitSelect('pPkgUnit');onUnitChange();}catch(e){}
+document.getElementById('newUnitName').addEventListener('keydown',function(e){if(e.key==='Enter')addUnit();});
 
 // PWA: register service worker (only works over http/https, not file://)
 if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){
