@@ -261,7 +261,10 @@ function handleUser(){
         if(!data.activeStore||!data.stores.find(function(s){return s.id===data.activeStore;}))data.activeStore=(prevStore&&data.stores.find(function(s){return s.id===prevStore;}))?prevStore:data.stores[0].id;
         data.renameId=null;data.editId=null;data.copyPid=null;
         normalizeProducts(data.stores);
+        // sync custom units from cloud
+        if(v.units&&Array.isArray(v.units)){saveCustomUnits(v.units);}
         renderStores();renderProducts();
+        try{renderUnitSelect('pUnit');renderUnitSelect('pPkgUnit');}catch(e){}
         saveLocal();
       } else {
         // nothing in cloud yet -> upload current local
@@ -274,11 +277,19 @@ function handleUser(){
 }
 function saveLocal(){try{localStorage.setItem(DB_KEY,JSON.stringify(data));}catch(e){}}
 function hasAnyData(st){return !!(st&&st.stores&&st.stores.some(function(s){return s.products&&Object.keys(s.products).length;}));}
-function pushAll(){
-  if(!syncRef)return;
+function getPushObj(){
   var obj=JSON.parse(JSON.stringify(data));
   delete obj.renameId;delete obj.editId;delete obj.copyPid;
-  syncRef.set(obj).catch(function(e){console.error('push failed',e);});
+  obj.units=getCustomUnits();
+  return obj;
+}
+function pushAll(){
+  if(!syncRef)return;
+  syncRef.set(getPushObj()).catch(function(e){console.error('push failed',e);});
+}
+function pushUnitsOnly(){
+  if(!syncRef)return;
+  syncRef.child('units').set(getCustomUnits()).catch(function(e){console.error('units push failed',e);});
 }
 function scheduleSync(){
   syncDirty=true;
@@ -331,6 +342,7 @@ function addUnit(){
   if(all.indexOf(name)>=0){alert('Такая единица уже есть');return;}
   customs.push(name);
   saveCustomUnits(customs);
+  try{pushUnitsOnly();}catch(e){}
   renderUnitsModal();
   document.getElementById('newUnitName').value='';
   var cur=document.getElementById('pUnit').value;
@@ -347,6 +359,7 @@ function removeUnit(idx){
   if(inUse){alert('Эта единица используется в товарах — её нельзя удалить');return;}
   customs.splice(idx,1);
   saveCustomUnits(customs);
+  try{pushUnitsOnly();}catch(e){}
   renderUnitsModal();
   var cur=document.getElementById('pUnit').value;
   renderUnitSelect('pUnit');
